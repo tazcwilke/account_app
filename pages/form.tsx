@@ -1,41 +1,67 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 
 const Form: React.FC = () => {
+  const router = useRouter();
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    address1: '',
-    address2: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'US',
-    ssn: '',
-    email: '',
-    dob: ''
-  });
+    name_first: '',
+    name_last: '',
+    addresses: [
+      {address_line_1: '',
+        address_line_2: '',
+        address_city: '',
+        address_state: '',
+        address_postal_code: '',
+        address_country_code: 'US'}
+    ],
+    document_ssn: '',
+    email_address: '',
+    birth_date: ''
+    });
 
   const [errors, setErrors] = useState<any>({});
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const newErrors: any = {};
-
-    // Validation logic
-    if (!formData.firstName) newErrors.firstName = 'First Name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last Name is required';
-    if (!formData.state.match(/^[A-Z]{2}$/)) newErrors.state = 'State must be a 2-letter code (ex. NY, CA)';
-    if (!formData.zipCode.match(/^\d{5}$/)) newErrors.zipCode = 'Zip/Postal Code must be 5 digits';
-    if (formData.country !== 'US') newErrors.country = 'Country must be US';
-    if (!formData.ssn.match(/^\d{9}$/)) newErrors.ssn = 'SSN must be 9 digits with no dashes';
-    if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) newErrors.email = 'Email must be valid';
-    if (!formData.dob.match(/^\d{4}-\d{2}-\d{2}$/)) newErrors.dob = 'Date of Birth must be in YYYY-MM-DD format';
+    
+    // Validation logic (the same as before)
+    if (!formData.name_first) newErrors.name_first = 'First Name is required';
+    if (!formData.name_last) newErrors.name_last = 'Last Name is required';
+    if (!formData.addresses[0].address_state.match(/^[A-Z]{2}$/)) newErrors.addresses[0].address_state = 'State must be a 2-letter code (ex. NY, CA)';
+    if (!formData.addresses[0].address_postal_code.match(/^\d{5}$/)) newErrors.addresses[0].address_postal_code = 'Zip/Postal Code must be 5 digits';
+    if (formData.addresses[0].address_country_code !== 'US') newErrors.addresses[0].address_country_code = 'Country must be US';
+    if (!formData.document_ssn.match(/^\d{9}$/)) newErrors.document_ssn = 'SSN must be 9 digits with no dashes';
+    if (!formData.email_address.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) newErrors.email_address = 'Email must be valid';
+    if (!formData.birth_date.match(/^\d{4}-\d{2}-\d{2}$/)) newErrors.birth_date = 'Date of Birth must be in YYYY-MM-DD format';
 
     if (Object.keys(newErrors).length === 0) {
-      alert('Form Submitted Successfully');
-      // Handle form submission logic, e.g., send data to a backend.
+      try {
+        const response = await fetch('/api/submit-form', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          
+          // After successful submission, redirect to the result page
+          router.push({
+            pathname: '/result',
+            query: { success: true, data: JSON.stringify(result) } // Passing data as string
+});
+
+        } else {
+          setErrors({ api: 'Failed to submit the form' });
+        }
+      } catch (error) {
+        setErrors({ api: 'An error occurred while submitting the form' });
+      }
     } else {
       setErrors(newErrors);
     }
@@ -44,10 +70,28 @@ const Form: React.FC = () => {
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+
+    // Handle address changes
+    if (name.startsWith('address_')) {
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        addresses: prevFormData.addresses.map((address, index) => {
+          if (index === 0) {
+            return {
+              ...address,
+              [name]: value,
+            };
+          }
+          return address;
+        }),
+      }));
+    } else {
+      // Handle other input fields
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        [name]: value,
+      }));
+    }
   };
 
   return (
@@ -57,28 +101,28 @@ const Form: React.FC = () => {
         <label>First Name</label>
         <input
           type="text"
-          name="firstName"
-          value={formData.firstName}
+          name="name_first"
+          value={formData.name_first}
           onChange={handleInputChange}
         />
-        {errors.firstName && <span style={{ color: 'red' }}>{errors.firstName}</span>}
+        {errors.name_first && <span style={{ color: 'red' }}>{errors.name_first}</span>}
       </div>
       <div>
         <label>Last Name</label>
         <input
           type="text"
-          name="lastName"
-          value={formData.lastName}
+          name="name_last"
+          value={formData.name_last}
           onChange={handleInputChange}
         />
-        {errors.lastName && <span style={{ color: 'red' }}>{errors.lastName}</span>}
+        {errors.name_last && <span style={{ color: 'red' }}>{errors.name_last}</span>}
       </div>
       <div>
         <label>Address Line 1</label>
         <input
           type="text"
-          name="address1"
-          value={formData.address1}
+          name="address_line_1"
+          value={formData.addresses[0].address_line_1}
           onChange={handleInputChange}
         />
       </div>
@@ -86,8 +130,8 @@ const Form: React.FC = () => {
         <label>Address Line 2</label>
         <input
           type="text"
-          name="address2"
-          value={formData.address2}
+          name="address_line_2"
+          value={formData.addresses[0].address_line_2}
           onChange={handleInputChange}
         />
       </div>
@@ -95,8 +139,8 @@ const Form: React.FC = () => {
         <label>City</label>
         <input
           type="text"
-          name="city"
-          value={formData.city}
+          name="address_city"
+          value={formData.addresses[0].address_city}
           onChange={handleInputChange}
         />
       </div>
@@ -104,62 +148,62 @@ const Form: React.FC = () => {
         <label>State</label>
         <input
           type="text"
-          name="state"
-          value={formData.state}
+          name="address_state"
+          value={formData.addresses[0].address_state}
           onChange={handleInputChange}
         />
-        {errors.state && <span style={{ color: 'red' }}>{errors.state}</span>}
+        {errors.addresses && errors.addresses[0]?.address_state && <span style={{ color: 'red' }}>{errors.addresses[0].address_state}</span>}
       </div>
       <div>
         <label>Zip/Postal Code</label>
         <input
           type="text"
-          name="zipCode"
-          value={formData.zipCode}
+          name="address_postal_code"
+          value={formData.addresses[0].address_postal_code}
           onChange={handleInputChange}
         />
-        {errors.zipCode && <span style={{ color: 'red' }}>{errors.zipCode}</span>}
+        {errors.addresses && errors.addresses[0]?.address_postal_code && <span style={{ color: 'red' }}>{errors.addresses[0].address_postal_code}</span>}
       </div>
       <div>
         <label>Country</label>
         <input
           type="text"
-          name="country"
-          value={formData.country}
+          name="address_country_code"
+          value={formData.addresses[0].address_country_code}
           onChange={handleInputChange}
           disabled
         />
-        {errors.country && <span style={{ color: 'red' }}>{errors.country}</span>}
+        {errors.addresses && errors.addresses[0]?.address_country_code && <span style={{ color: 'red' }}>{errors.addresses[0].address_country_code}</span>}
       </div>
       <div>
         <label>SSN</label>
         <input
           type="text"
-          name="ssn"
-          value={formData.ssn}
+          name="document_ssn"
+          value={formData.document_ssn}
           onChange={handleInputChange}
         />
-        {errors.ssn && <span style={{ color: 'red' }}>{errors.ssn}</span>}
+        {errors.document_ssn && <span style={{ color: 'red' }}>{errors.document_ssn}</span>}
       </div>
       <div>
         <label>Email Address</label>
         <input
           type="email"
-          name="email"
-          value={formData.email}
+          name="email_address"
+          value={formData.email_address}
           onChange={handleInputChange}
         />
-        {errors.email && <span style={{ color: 'red' }}>{errors.email}</span>}
+        {errors.email_address && <span style={{ color: 'red' }}>{errors.email_address}</span>}
       </div>
       <div>
         <label>Date of Birth (YYYY-MM-DD)</label>
         <input
           type="text"
-          name="dob"
-          value={formData.dob}
+          name="birth_date"
+          value={formData.birth_date}
           onChange={handleInputChange}
         />
-        {errors.dob && <span style={{ color: 'red' }}>{errors.dob}</span>}
+        {errors.birth_date && <span style={{ color: 'red' }}>{errors.birth_date}</span>}
       </div>
       <button type="submit">Submit</button>
     </form>

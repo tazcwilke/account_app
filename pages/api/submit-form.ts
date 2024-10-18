@@ -42,11 +42,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Basic ${base64Encoded}`,
+            Authorization: `Basic ${base64Encoded}`,
           },
           body: JSON.stringify(req.body),
         });
-  
+        console.log(externalApiResponse);
         if (externalApiResponse.ok) {
           const apiData = await externalApiResponse.json();
           // Respond back to the client with success
@@ -56,7 +56,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           res.status(externalApiResponse.status).json({ message: 'Failed to submit form to external API', error: errorMessage });
         }
       } catch (error) {
-        res.status(500).json({ message: 'An error occurred while connecting to the external API', error: error.message });
+        if (error instanceof Error) {
+          return res.status(500).json({ message: 'An error occurred while connecting to the external API', error: error.message });
+        } else {
+          return res.status(500).json({ message: 'An unknown error occurred', error: String(error) });
+        }
       }
   } else {
     res.status(405).json({ message: 'Method Not Allowed' });
